@@ -14,3 +14,4 @@ seaborn
 sqlalchemy
 pyodbc
 plotly
+scikit-learn
