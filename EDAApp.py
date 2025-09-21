@@ -8,21 +8,17 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import plotly.express as px
-from sqlalchemy import create_engine
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.ensemble import RandomForestClassifier
 import warnings
 warnings.filterwarnings("ignore")
 
-# ------------------------
-# Database connection
-# ------------------------
-server = r'UZZII\SQLEXPRESS'
-database = "PHARMA"
 
-engine = create_engine(
-    f"mssql+pyodbc://@{server}/{database}?trusted_connection=yes&driver=ODBC+Driver+17+for+SQL+Server"
-)
+# Replace with your CSV file path
+csv_file = "Vaccines.csv"
+
+# Read CSV into DataFrame
+df = pd.read_csv(csv_file)
 
 # ------------------------
 # User credentials
@@ -58,7 +54,7 @@ def login():
 # ------------------------
 def main_app():
     # Load data
-    df = pd.read_sql('SELECT * FROM VACCINES', engine)      
+    df = pd.read_csv("Vaccines.csv")     
 
     st.sidebar.title("🧭 Navigation")
     selection = st.sidebar.radio("Go to Section",["Home Page","Key Metrics","Understand Vaccine Coverage","Demographic Insights","Additional Visualizations"])
@@ -105,7 +101,8 @@ This dashboard is designed to help you:
         h1n1_vacc_rate = df['h1n1_vaccine'].mean() * 100
         seasonal_vacc_rate = df['seasonal_vaccine'].mean() * 100
         Both_Vaccinated_Percentage = ((df['h1n1_vaccine']) & (df['seasonal_vaccine'])).mean() * 100
-        Neither_Vaccinated_Percentage = ((~df['h1n1_vaccine']) & (~df['seasonal_vaccine'])).mean() * 100
+        Neither_Vaccinated_Percentage = (((df['h1n1_vaccine'] == 0) & (df['seasonal_vaccine'] == 0))).mean() * 100
+
         Count_of_H1N1_Vaccinated = df['h1n1_vaccine'].sum()
         Count_of_Seasonal_Vaccinated = df['seasonal_vaccine'].sum()
         Count_of_H1N1_Knowledgeable = (df['h1n1_knowledge'] == 2).sum()
@@ -378,13 +375,30 @@ This dashboard is designed to help you:
     # ------------------------
     if selection == "Additional Visualizations":
         st.header("📊 Additional Visualizations")
+
         # 🔍 Correlation Heatmap
         st.subheader("🔍 Correlation Heatmap")
-        plt.figure(figsize=(10,6))
-        numeric_df = df.select_dtypes(include='number')  # select only numeric columns
-        sns.heatmap(numeric_df.corr(), cmap="coolwarm", center=0, annot=True, fmt=".2f")
-        st.pyplot(plt.gcf())  # use gcf() to get current figure
-        plt.clf()  # clear the figure for next plot
+
+        # Drop respondent_id if present
+        numeric_df = df.select_dtypes(include='number').drop(columns=["respondent_id"], errors="ignore")
+
+        corr = numeric_df.corr(method="spearman")  # better for categorical/binary
+
+        mask = np.triu(np.ones_like(corr, dtype=bool))  # mask upper triangle
+
+        plt.figure(figsize=(12, 8))
+        sns.heatmap(
+            corr,
+            mask=mask,
+            cmap="coolwarm",
+            center=0,
+            annot=False,  # turn off annotations for readability
+            cbar_kws={'shrink': .5},
+            linewidths=0.5
+        )
+        st.pyplot(plt.gcf())
+        plt.clf()
+
 
         # 📊 Vaccination Rates by Concern & Knowledge
         st.subheader("📊 Vaccination Rates by Concern & Knowledge")
